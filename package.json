@@ -1,5 +1,6 @@
 {
-  "name": "temp-app",
+  "name": "guitar-hero",
+  "homepage": "https://PabloGGuizar.github.io/guitar-champion",
   "private": true,
   "version": "0.0.0",
   "type": "module",
