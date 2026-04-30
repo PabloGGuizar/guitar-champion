@@ -1,5 +1,28 @@
 // Mapa de acordes generado mediante análisis de audio (Librosa)
 // Las notas están sincronizadas con los picos de volumen de tu canción.
+
+/**
+ * Filtra el song map según la dificultad seleccionada.
+ * - 'easy':   una nota cada ~1.5 s (aprox. 25% del total)
+ * - 'medium': una nota cada ~0.7 s (aprox. 50% del total)
+ * - 'hard':   todas las notas (comportamiento original)
+ */
+export function filterByDifficulty(map, difficulty = 'hard') {
+  if (difficulty === 'hard') return map;
+
+  const minGap = difficulty === 'easy' ? 1.5 : 0.7;
+  const filtered = [];
+  let lastTime = -Infinity;
+
+  for (const note of map) {
+    if (note.targetTime - lastTime >= minGap) {
+      filtered.push(note);
+      lastTime = note.targetTime;
+    }
+  }
+  return filtered;
+}
+
 export const generatedSongMap = [
   {
     "lane": 2,
