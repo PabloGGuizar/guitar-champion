@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Play, Upload, Smartphone, Music, CheckCircle2 } from 'lucide-react';
 import { usePeer } from '../hooks/usePeer';
 import { AudioEngine } from '../utils/AudioEngine';
+import { generatedSongMap } from '../utils/songMap';
 import GameBoard from './GameBoard';
 
 export default function Host() {
@@ -10,8 +11,9 @@ export default function Host() {
   const [audioEngine] = useState(() => new AudioEngine());
   const [audioFile, setAudioFile] = useState(null);
   const [notes, setNotes] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   
   const gameBoardRef = useRef(null);
 
@@ -26,25 +28,24 @@ export default function Host() {
     return unsubscribe;
   }, [onMessage]);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    setAudioFile(file);
-    setIsProcessing(true);
-    
-    try {
-      const buffer = await audioEngine.loadAudio(file);
-      const generatedNotes = await audioEngine.analyzeAudio(buffer);
-      setNotes(generatedNotes);
-      console.log(`Generated ${generatedNotes.length} notes`);
-    } catch (err) {
-      console.error("Failed to process audio:", err);
-      alert("Error processing audio. Please try another MP3.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // Load song automatically on mount
+  useEffect(() => {
+    const initGame = async () => {
+      setIsProcessing(true);
+      try {
+        await audioEngine.loadFromUrl(`${import.meta.env.BASE_URL}song.mp3`);
+        setNotes(generatedSongMap);
+        setAudioFile({ name: "La entropía en el cristal" });
+        setIsLoaded(true);
+        console.log(`Loaded song with ${generatedSongMap.length} notes`);
+      } catch (err) {
+        console.error("Failed to load song:", err);
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+    initGame();
+  }, [audioEngine]);
 
   const startGame = async () => {
     if (!audioFile || notes.length === 0) return;
@@ -71,25 +72,28 @@ export default function Host() {
           </h2>
           
           <div className="flex flex-col gap-4">
-            <label className="flex items-center justify-center w-full h-32 px-4 transition bg-slate-900 border-2 border-slate-700 border-dashed rounded-xl appearance-none cursor-pointer hover:border-blue-400 focus:outline-none">
-                <span className="flex items-center space-x-2">
-                    <Upload className="w-6 h-6 text-slate-400" />
-                    <span className="font-medium text-slate-400">
-                        {audioFile ? audioFile.name : "Drop MP3 to Analyze"}
-                    </span>
-                </span>
-                <input type="file" name="file_upload" className="hidden" accept="audio/mpeg, audio/mp3" onChange={handleFileUpload} />
-            </label>
-            
-            {isProcessing && (
-              <div className="text-blue-400 font-medium animate-pulse">
-                Analyzing audio frequencies...
+            {isProcessing ? (
+              <div className="flex items-center justify-center w-full h-32 px-4 transition bg-slate-900 border-2 border-slate-700 border-dashed rounded-xl">
+                <div className="flex flex-col items-center gap-2 text-blue-400 font-medium animate-pulse">
+                  <Music className="w-8 h-8" />
+                  Loading song and chords...
+                </div>
               </div>
-            )}
-            
-            {notes.length > 0 && !isProcessing && (
-              <div className="flex items-center gap-2 text-green-400 font-medium">
-                <CheckCircle2 /> Ready! ({notes.length} notes generated)
+            ) : isLoaded ? (
+              <div className="flex items-center justify-center w-full h-32 px-4 bg-slate-900 border-2 border-green-500/50 rounded-xl">
+                <div className="flex flex-col items-center gap-2">
+                  <CheckCircle2 className="w-8 h-8 text-green-400" />
+                  <span className="font-medium text-green-400">
+                    {audioFile.name} Ready
+                  </span>
+                  <span className="text-sm text-green-500/70">
+                    {notes.length} notes mapped
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-red-400 font-medium text-center py-4 bg-slate-900 rounded-xl border border-red-500/50">
+                Failed to load audio
               </div>
             )}
           </div>

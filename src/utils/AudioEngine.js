@@ -17,6 +17,14 @@ export class AudioEngine {
     return this.buffer;
   }
 
+  // Fetches and decodes an audio file from a URL
+  async loadFromUrl(url) {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    this.buffer = await this.audioContext.decodeAudioData(arrayBuffer);
+    return this.buffer;
+  }
+
   // Uses an OfflineAudioContext to filter the audio into 4 frequency bands,
   // renders it, and then analyzes the peaks to generate notes.
   async analyzeAudio(buffer) {
