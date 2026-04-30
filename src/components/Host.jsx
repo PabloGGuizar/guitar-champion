@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Play, Smartphone, Music, CheckCircle2, Zap, HelpCircle, X } from 'lucide-react';
+import { Play, Smartphone, Music, CheckCircle2, Zap, HelpCircle, X, Bot } from 'lucide-react';
 import { usePeer } from '../hooks/usePeer';
 import { AudioEngine } from '../utils/AudioEngine';
 import { generatedSongMap, filterByDifficulty } from '../utils/songMap';
@@ -125,8 +125,11 @@ export default function Host() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [difficulty, setDifficulty] = useState('medium');
   const [showHelp, setShowHelp] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const gameBoardRef = useRef(null);
+  const demoRafRef = useRef(null);
+  const demoHitSet = useRef(new Set()); // indices ya golpeados en demo
 
   useEffect(() => {
     const unsubscribe = onMessage((data) => {
@@ -163,6 +166,37 @@ export default function Host() {
     setIsPlaying(true);
     audioEngine.play();
   };
+
+  // Demo mode: auto-hit notes with perfect timing
+  const startDemo = async () => {
+    if (!audioFile || notes.length === 0) return;
+    if (audioEngine.audioContext.state === 'suspended') {
+      await audioEngine.audioContext.resume();
+    }
+    setIsDemoMode(true);
+    setIsPlaying(true);
+    demoHitSet.current = new Set();
+    audioEngine.play();
+
+    const HIT_WINDOW = 0.04; // 40ms — hit before the exact target
+    const loop = () => {
+      const now = audioEngine.getCurrentTime();
+      notes.forEach((note, idx) => {
+        if (!demoHitSet.current.has(idx)) {
+          // Hit slightly before the target for a realistic feel
+          if (now >= note.targetTime - HIT_WINDOW && now < note.targetTime + 0.05) {
+            demoHitSet.current.add(idx);
+            gameBoardRef.current?.registerHit(note.lane);
+          }
+        }
+      });
+      demoRafRef.current = requestAnimationFrame(loop);
+    };
+    demoRafRef.current = requestAnimationFrame(loop);
+  };
+
+  // Stop demo loop when component unmounts
+  useEffect(() => () => cancelAnimationFrame(demoRafRef.current), []);
 
   const connectionUrl = peerId
     ? `${window.location.origin}${window.location.pathname}?id=${peerId}`
@@ -297,23 +331,36 @@ export default function Host() {
         </div>
 
         {/* Start button */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-3 flex-wrap">
           <div className="flex flex-col">
             <span className="text-white font-bold text-lg">Tablero de juego</span>
             {isPlaying && (
-              <span className="text-blue-400 text-xs font-medium animate-pulse flex items-center gap-1">
-                <Zap size={12} /> Sesión en curso…
+              <span className={`text-xs font-medium animate-pulse flex items-center gap-1 ${isDemoMode ? 'text-purple-400' : 'text-blue-400'}`}>
+                {isDemoMode ? <><Bot size={12} /> Modo demo activo…</> : <><Zap size={12} /> Sesión en curso…</>}
               </span>
             )}
           </div>
-          <button
-            onClick={startGame}
-            disabled={!audioFile || notes.length === 0 || isProcessing || isPlaying}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-full transition-all flex items-center gap-2 shadow-xl shadow-blue-500/30 text-lg"
-          >
-            <Play fill="currentColor" size={20} />
-            {isPlaying ? 'Jugando…' : '¡Iniciar!'}
-          </button>
+          <div className="flex gap-3">
+            {/* Demo button */}
+            <button
+              onClick={startDemo}
+              disabled={!audioFile || notes.length === 0 || isProcessing || isPlaying}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-full transition-all flex items-center gap-2 shadow-xl shadow-purple-500/30"
+              title="Inicia una partida perfecta automática"
+            >
+              <Bot size={18} />
+              Demo
+            </button>
+            {/* Start button */}
+            <button
+              onClick={startGame}
+              disabled={!audioFile || notes.length === 0 || isProcessing || isPlaying}
+              className="px-8 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-full transition-all flex items-center gap-2 shadow-xl shadow-blue-500/30 text-lg"
+            >
+              <Play fill="currentColor" size={20} />
+              {isPlaying ? 'Jugando…' : '¡Iniciar!'}
+            </button>
+          </div>
         </div>
 
         {/* Game board */}
