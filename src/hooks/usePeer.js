@@ -27,8 +27,33 @@ export function usePeer(isHost, targetPeerId = null) {
   }, []);
 
   useEffect(() => {
-    // Initialize Peer
-    const peer = new Peer();
+    // Initialize Peer with custom ICE servers (STUN & TURN)
+    // to improve connection success rates across different networks.
+    const peer = new Peer({
+      config: {
+        iceServers: [
+          // Free STUN servers (Google)
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          // Free TURN server (OpenRelay Project by Metered.ca)
+          {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          },
+          {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
+        ]
+      }
+    });
     peerRef.current = peer;
 
     peer.on('open', (id) => {
