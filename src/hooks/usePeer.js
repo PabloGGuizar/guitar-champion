@@ -64,7 +64,7 @@ export function usePeer(isHost, targetPeerId = null) {
       if (!isHost && targetPeerId) {
         console.log(`Connecting to Host: ${targetPeerId}`);
         const conn = peer.connect(targetPeerId, {
-          reliable: false, // Use unreliable (UDP-like) for lower latency if possible, though WebRTC DataChannels handle it. For gaming, reliable: false is often better, but PeerJS defaults to reliable: true. We'll leave default for compatibility.
+          reliable: true, // Use reliable mode for better compatibility with TURN servers
         });
         
         conn.on('open', () => {
